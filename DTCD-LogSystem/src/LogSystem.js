@@ -1,4 +1,4 @@
-import { SystemPlugin } from '../../../DTCD-SDK/index';
+import { SystemPlugin } from '../../DTCD-SDK/index';
 
 export class LogSystem extends SystemPlugin {
   static getRegistrationMeta() {
