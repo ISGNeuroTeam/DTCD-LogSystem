@@ -38,7 +38,7 @@ build: ${PROJECT_NAME}/node_modules $(COMPONENTS)
 	echo Building...
 	$(SET_VERSION)
 	if test ! -d DTCD-SDK; \
-	then curl $(SDK_URL) | tar -zx $(SDK);\
+	then curl $(SDK_URL) | tar -zx ./$(SDK);\
 	else echo DTCD-SDK alredy downloaded; \
   fi
 	echo Start command: npm run build
@@ -62,7 +62,7 @@ test: $(PROJECT_NAME)/node_modules
 	echo "Testing..."
 	echo $(PROJECT_NAME)
 	if test ! -d DTCD-SDK; \
-	then curl $(SDK_URL) | tar -zx $(SDK);\
+	then curl $(SDK_URL) | tar -zx ./$(SDK);\
 	else echo DTCD-SDK alredy downloaded; \
   fi
 	npm run --prefix ./$(PROJECT_NAME) test
@@ -70,7 +70,7 @@ test: $(PROJECT_NAME)/node_modules
 dev: ${PROJECT_NAME}/node_modules $(COMPONENTS)
 	echo Development mode!
 	if test ! -d DTCD-SDK; \
-	then curl $(SDK_URL) | tar -zx $(SDK);\
+	then curl $(SDK_URL) | tar -zx ./$(SDK);\
 	else echo DTCD-SDK alredy downloaded; \
   fi
 	npm run dev --prefix ./$(PROJECT_NAME)
