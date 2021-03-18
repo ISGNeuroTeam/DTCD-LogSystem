@@ -1,10 +1,13 @@
+import resolve from '@rollup/plugin-node-resolve';
+import babel from '@rollup/plugin-babel';
+
 const watch = Boolean(process.env.ROLLUP_WATCH);
 
 const pluginName = 'LogSystem';
 
 const output = watch ? `./../../DTCD/server/plugins/${pluginName}.js` : `./dist/${pluginName}.js`;
 
-const plugins = [];
+const plugins = [resolve(), babel({ babelHelpers: 'bundled' })];
 
 export default {
   input: './src/LogSystem.js',
