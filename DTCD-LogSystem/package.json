@@ -1,27 +1,26 @@
 {
   "name": "log-system",
-  "version": "0.2.0",
-  "description": "",
+  "version": "0.3.0",
+  "description": "LogSystem for DTCD application",
   "main": "./src/LogSystem.js",
   "scripts": {
     "test": "jest",
     "build": "rollup -c",
     "dev": "rollup -cw"
   },
-  "author": "",
+  "author": "Kuramshin Roman",
   "license": "ISC",
   "devDependencies": {
-    "@babel/plugin-proposal-class-properties": "^7.13.0",
-    "@babel/plugin-proposal-private-methods": "^7.13.0",
-    "@rollup/plugin-babel": "^5.3.0",
-    "@rollup/plugin-node-resolve": "^11.2.0",
-    "@types/jest": "^26.0.21",
-    "jest": "^26.6.3",
-    "rollup": "^2.33.1"
+    "@babel/core": "7.12.13",
+    "@babel/plugin-proposal-class-properties": "7.13.0",
+    "@babel/plugin-proposal-private-methods": "7.13.0",
+    "@babel/preset-env": "7.12.13",
+    "@rollup/plugin-babel": "5.3.0",
+    "@rollup/plugin-node-resolve": "11.2.0",
+    "@types/jest": "26.0.21",
+    "babel-jest": "26.6.3",
+    "jest": "26.6.3",
+    "rollup": "2.33.1"
   },
-  "dependencies": {
-    "@babel/core": "^7.12.13",
-    "@babel/preset-env": "^7.12.13",
-    "babel-jest": "^26.6.3"
-  }
+  "dependencies": {}
 }
