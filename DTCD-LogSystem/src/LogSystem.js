@@ -41,7 +41,7 @@ export class LogSystem extends SystemPlugin {
       if (config) {
         this.config = JSON.parse(config);
       } else {
-        const response = await fetch('/logs/configuration1');
+        const response = await fetch('/logs/configuration');
         this.config = await response.json();
       }
     } catch (err) {
