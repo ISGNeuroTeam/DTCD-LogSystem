@@ -1,20 +1,91 @@
 import { SystemPlugin } from '../../DTCD-SDK/index';
+import sizeof from './utils/sizeof';
 
 export class LogSystem extends SystemPlugin {
+  /**
+   * @constructor
+   * @param {String} guid guid of system instance
+   */
+  constructor(guid) {
+    super();
+    this.guid = guid;
+    this.logLevels = {
+      fatal: 1,
+      error: 2,
+      warn: 3,
+      info: 4,
+      debug: 5,
+    };
+    this.logs = [];
+  }
+
+  /**
+   * Return meta information about plugin for registration in application
+   * @returns {Object} - meta-info
+   */
   static getRegistrationMeta() {
     return {
       type: 'core',
       title: 'Система логирования',
       name: 'LogSystem',
+      init: true,
     };
   }
 
-  constructor() {
-    super();
-    this.logs = [];
+  /**
+   * Initializes system configuration after creation of instance.  Must be called after creation!
+   */
+  async init() {
+    try {
+      const config = localStorage.getItem('logSystemConfig');
+      if (config) {
+        this.config = JSON.parse(config);
+      } else {
+        const response = await fetch('/logs/configuration1');
+        this.config = await response.json();
+      }
+    } catch (err) {
+      // console.error(err);
+      this.config = {
+        GlobalLogLevel: 'fatal',
+        BufferSize: 10000,
+        SendInterval: 150,
+      };
+    } finally {
+      this.globalLogLevel = this.config.GlobalLogLevel;
+
+      this.bufferSize = this.config.BufferSize;
+
+      this.intervalSeconds = this.config.SendInterval;
+
+      this.intervalID = this.#createTimeInterval(this.intervalSeconds);
+      localStorage.setItem('logSystemConfig', JSON.stringify(this.config));
+    }
   }
 
-  log(guid, pluginName, message) {
+  /**
+   * Creates scheduler for sendign logs to server
+   * @param {Number} seconds - interval in seconds
+   * @returns {Number} - id of created interval
+   */
+  #createTimeInterval(seconds) {
+    return setInterval(() => {
+      if (this.logs.length > 0) {
+        this.#uploadLogs();
+        this.logs = [];
+      }
+    }, seconds * 1000);
+  }
+
+  /**
+   * Creates log record object and pushes it to system buffer for logs
+   * @param {String} logLevel - interval in seconds
+   * @param {String} guid - guid of plugin instance
+   * @param {String} pluginName - name of plugin instance
+   * @param {String} message - log message to record
+   * @returns {Boolean} - indicatior of success
+   */
+  #log(logLevel, guid, pluginName, message) {
     if (
       typeof guid === 'string' &&
       typeof pluginName === 'string' &&
@@ -23,17 +94,319 @@ export class LogSystem extends SystemPlugin {
       pluginName.length > 0 &&
       message.length > 0
     ) {
-      let time = Date.now();
-      this.logs.push({
+      const time = Date.now();
+      const caller = this.#getFunctionCaller();
+      const object = {
         timestamps: time,
-        plugin: pluginName,
-        message: message,
+        logLevel,
         guid,
-      });
+        plugin: pluginName,
+        caller,
+        message: message,
+      };
+
+      if (sizeof(object) > this.bufferSize) {
+        return false;
+      } else if (sizeof(object) + sizeof(this.logs) > this.bufferSize) {
+        try {
+          this.#uploadLogs();
+        } catch (err) {
+          console.log(err);
+        } finally {
+          this.logs = [];
+          if (this.intervalSeconds) {
+            clearInterval(this.intervalID);
+            this.intervalID = this.#createTimeInterval(this.intervalSeconds);
+          }
+          this.logs.push(object);
+        }
+      } else {
+        this.logs.push(object);
+      }
       return true;
     } else return false;
   }
-  uploadLogs() {
-    console.log('coming soon...');
+
+  /**
+   * Uploads log buffer to server
+   */
+  #uploadLogs() {
+    try {
+      // console.log('sending logs...');
+      const jsonLogs = JSON.stringify(this.logs);
+      fetch('logs/save', {
+        method: 'POST',
+        body: jsonLogs,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+        .then(response => response.json())
+        .then(data => data);
+    } catch (error) {
+      console.error('Ошибка:', error);
+    }
+  }
+
+  /**
+   * Return current configuration of LogSystem stored in localStorage
+   * @returns {Object} - configuration
+   */
+  #getConfig() {
+    const config = localStorage.getItem('logSystemConfig');
+    if (config) {
+      return JSON.parse(config);
+    } else {
+      return false;
+    }
+  }
+
+  /**
+   * Saves given configuration of LogSystem in localStorage (overwrites if already exists)
+   * @returns {Object} - configuration
+   */
+  #saveConfig(config) {
+    localStorage.setItem('logSystemConfig', JSON.stringify(config));
+  }
+
+  /**
+   * Checks given logLevel to be correct
+   * @param {(String | Number)} - log level to check
+   * @returns {String} - log level if exist in system
+   */
+  #checkLogLevel(logLevel) {
+    if (
+      typeof logLevel == 'string' &&
+      Object.keys(this.logLevels).indexOf(logLevel.toLocaleLowerCase()) > -1
+    ) {
+      return logLevel.toLocaleLowerCase();
+    } else if (
+      typeof logLevel == 'number' &&
+      Object.values(this.logLevels).indexOf(logLevel) > -1
+    ) {
+      return Object.keys(this.logLevels).find(key => this.logLevels[key] == logLevel);
+    } else return false;
+  }
+
+  /**
+   * Returns log functrion caller name
+   * @returns {String} - log functrion caller name
+   */
+  #getFunctionCaller() {
+    const oldStackTrace = Error.prepareStackTrace;
+    try {
+      // eslint-disable-next-line handle-callback-err
+      Error.prepareStackTrace = (err, structuredStackTrace) => structuredStackTrace;
+      Error.captureStackTrace(this);
+      if (this.stack[4]) {
+        return this.stack[4].getFunctionName();
+      } else {
+        return '';
+      }
+    } finally {
+      Error.prepareStackTrace = oldStackTrace;
+    }
+  }
+
+  /**
+   * Adds new fatal level log record to the system
+   * @param {String} guid - guid of plugin instance
+   * @param {String} pluginName - name of plugin instance
+   * @param {String} message - log message to record
+   * @returns {Boolean} - indicatior of success
+   */
+  fatal(guid, pluginName, message) {
+    const level = this.getPluginLogLevel(guid, pluginName);
+    if (this.logLevels[level] >= this.logLevels['fatal']) {
+      return this.#log('fatal', guid, pluginName, message);
+    }
+  }
+
+  /**
+   * Adds new error level log record to the system
+   * @param {String} guid - guid of plugin instance
+   * @param {String} pluginName - name of plugin instance
+   * @param {String} message - log message to record
+   * @returns {Boolean} - indicatior of success
+   */
+  error(guid, pluginName, message) {
+    const level = this.getPluginLogLevel(guid, pluginName);
+    if (this.logLevels[level] >= this.logLevels['error']) {
+      return this.#log('error', guid, pluginName, message);
+    }
+  }
+
+  /**
+   * Adds new warn level log record to the system
+   * @param {String} guid - guid of plugin instance
+   * @param {String} pluginName - name of plugin instance
+   * @param {String} message - log message to record
+   * @returns {Boolean} - indicatior of success
+   */
+  warn(guid, pluginName, message) {
+    const level = this.getPluginLogLevel(guid, pluginName);
+    if (this.logLevels[level] >= this.logLevels['warn']) {
+      return this.#log('warn', guid, pluginName, message);
+    }
+  }
+
+  /**
+   * Adds new info level log record to the system
+   * @param {String} guid - guid of plugin instance
+   * @param {String} pluginName - name of plugin instance
+   * @param {String} message - log message to record
+   * @returns {Boolean} - indicatior of success
+   */
+  info(guid, pluginName, message) {
+    const level = this.getPluginLogLevel(guid, pluginName);
+    if (this.logLevels[level] >= this.logLevels['info']) {
+      return this.#log('info', guid, pluginName, message);
+    }
+  }
+
+  /**
+   * Adds new debug level log record to the system
+   * @param {String} guid - guid of plugin instance
+   * @param {String} pluginName - name of plugin instance
+   * @param {String} message - log message to record
+   * @returns {Boolean} - indicatior of success
+   */
+  debug(guid, pluginName, message) {
+    const level = this.getPluginLogLevel(guid, pluginName);
+    if (this.logLevels[level] >= this.logLevels['debug']) {
+      return this.#log('debug', guid, pluginName, message);
+    }
+  }
+
+  /**
+   * Invokes callback if current log level is above or equel to the given, otherwise nothing happens
+   * @param {String} guid - guid of plugin instance
+   * @param {String} pluginName - name of plugin instance
+   * @param {(String|Number)} logLevel - level on what callback should be invoked
+   * @param {callback} callback - callback which should be invoked if level is suitable, should return String message!
+   * @returns {Boolean} - indicatior of success
+   */
+  invokeOnLevel(guid, pluginName, logLevel, callback) {
+    if (typeof callback != 'function') return false;
+    const givenLevel = this.#checkLogLevel(logLevel);
+    const pluginLevel = this.config[`${guid}${pluginName}`] || this.globalLogLevel;
+    if (givenLevel && this.logLevels[pluginLevel] >= this.logLevels[givenLevel]) {
+      const result = callback();
+      if (result instanceof Promise) {
+        result.then(message => {
+          return this[givenLevel](guid, pluginName, message);
+        });
+      } else return this[givenLevel](guid, pluginName, result);
+    } else return false;
+  }
+
+  /**
+   * Returns current global log level
+   * @returns {String} - current global log level
+   */
+  getGlobalLogLevel() {
+    return this.globalLogLevel;
+  }
+
+  /**
+   * Sets new global log level
+   * @param {(String|Number)} logLevel - new log level
+   * @returns {Boolean} - indicatior of success
+   */
+  setGlobalLogLevel(logLevel) {
+    const level = this.#checkLogLevel(logLevel);
+    if (level) {
+      this.globalLogLevel = level;
+      return true;
+    } else return false;
+  }
+
+  /**
+   * Returns current log level of plugin
+   * @param {String} guid - guid of plugin instance
+   * @param {String} pluginName - name of plugin instance
+   * @returns {String} - current log level of plugin
+   */
+  getPluginLogLevel(guid, pluginName) {
+    return this.config[`${guid}${pluginName}`] || this.globalLogLevel;
+  }
+
+  /**
+   * Sets new plugin log level
+   * @param {String} guid - guid of plugin instance
+   * @param {String} pluginName - name of plugin instance
+   * @param {(String|Number)} logLevel - new log level
+   * @returns {Boolean} - indicatior of success
+   */
+  setPluginLogLevel(guid, pluginName, logLevel) {
+    let level = this.#checkLogLevel(logLevel);
+    let config = this.#getConfig();
+    if (config && level) {
+      config[`${guid}${pluginName}`] = level;
+      this.config[`${guid}${pluginName}`] = level;
+      this.#saveConfig(config);
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  /**
+   * Removes current log level of plugin
+   * @param {String} guid - guid of plugin instance
+   * @param {String} pluginName - name of plugin instance
+   * @returns {Boolean} - indicatior of success
+   */
+  removePluginLogLevel(guid, pluginName) {
+    let config = this.#getConfig();
+    if (config) {
+      delete config[`${guid}${pluginName}`];
+      delete this.config[`${guid}${pluginName}`];
+      this.#saveConfig(config);
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  /**
+   * Sets new interval for sending logs, work only after page reload
+   * @param {Number} seconds - interval in seconds
+   * @returns {Boolean} - indicatior of success
+   */
+  setSendInerval(seconds) {
+    if (typeof seconds != 'number') return false;
+    let config = this.#getConfig();
+    if (config) {
+      config['SendInterval'] = seconds;
+      this.#saveConfig(config);
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  /**
+   * Sets new buffer size logs, work only after page reload
+   * @param {Number} bytes - buffer size in bytes
+   * @returns {Boolean} - indicatior of success
+   */
+  setBufferSize(bytes) {
+    if (typeof bytes != 'number') return false;
+    let config = this.#getConfig();
+    if (config) {
+      config['BufferSize'] = bytes;
+      this.#saveConfig(config);
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  /**
+   * Resets current configuration of LogSystem
+   */
+  resetConfiguration() {
+    localStorage.removeItem('logSystemConfig');
   }
 }
