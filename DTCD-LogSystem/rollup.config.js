@@ -5,19 +5,19 @@ const watch = Boolean(process.env.ROLLUP_WATCH);
 
 const pluginName = 'LogSystem';
 
-const output = watch ? `./../../DTCD/server/plugins/${pluginName}.js` : `./dist/${pluginName}.js`;
+const output = watch ? `./../../DTCD/server/plugins/${pluginName}.js` : `./build/${pluginName}.js`;
 
-const plugins = [resolve(), babel({ babelHelpers: 'bundled' })];
+const plugins = [resolve(), babel({babelHelpers: 'bundled'})];
 
 export default {
-  input: './src/LogSystem.js',
-  output: {
-    file: output,
-    format: 'esm',
-    sourcemap: false,
-  },
-  watch: {
-    include: ['./*/**'],
-  },
-  plugins,
+	input: './src/LogSystem.js',
+	output: {
+		file: output,
+		format: 'esm',
+		sourcemap: false,
+	},
+	watch: {
+		include: ['./*/**'],
+	},
+	plugins,
 };
