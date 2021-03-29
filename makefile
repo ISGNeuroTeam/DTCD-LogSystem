@@ -64,7 +64,7 @@ clean:
 	echo Cleaning completed.
 	# required section
 
-test: COMPONENTS
+test: $(PROJECT_NAME)/node_modules COMPONENTS
 	# required section
 	echo Testing started...
 	npm run test --prefix ./$(PROJECT_NAME)
