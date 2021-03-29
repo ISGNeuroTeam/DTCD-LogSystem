@@ -197,11 +197,17 @@ export class LogSystem extends SystemPlugin {
     try {
       // eslint-disable-next-line handle-callback-err
       Error.prepareStackTrace = (err, structuredStackTrace) => structuredStackTrace;
-      Error.captureStackTrace(this);
-      if (this.stack[4]) {
-        return this.stack[4].getFunctionName();
+      if (Error.captureStackTrace) {
+        Error.captureStackTrace(this);
+        if (this.stack[4]) {
+          return this.stack[4].getFunctionName();
+        } else {
+          return '';
+        }
       } else {
-        return '';
+        this.stack = new Error().stack.split('\n');
+        if (this.stack[4]) return this.stack[4].split('@')[0];
+        else return '';
       }
     } finally {
       Error.prepareStackTrace = oldStackTrace;
