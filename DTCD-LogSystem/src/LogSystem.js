@@ -28,6 +28,9 @@ export class LogSystem extends SystemPlugin {
       type: 'core',
       title: 'Система логирования',
       name: 'LogSystem',
+      version: '0.3.1',
+      withDependencies: false,
+      priority: 7,
       init: true,
     };
   }
