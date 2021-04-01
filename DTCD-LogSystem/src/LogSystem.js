@@ -18,7 +18,6 @@ export class LogSystem extends SystemPlugin {
     };
     this.logs = [];
   }
-
   /**
    * Return meta information about plugin for registration in application
    * @returns {Object} - meta-info
@@ -44,7 +43,7 @@ export class LogSystem extends SystemPlugin {
       if (config) {
         this.config = JSON.parse(config);
       } else {
-        const response = await fetch('/logs/configuration');
+        const response = await fetch('v2/logs/configuration');
         this.config = await response.json();
       }
     } catch (err) {
@@ -137,7 +136,7 @@ export class LogSystem extends SystemPlugin {
     try {
       // console.log('sending logs...');
       const jsonLogs = JSON.stringify(this.logs);
-      fetch('logs/save', {
+      fetch('v2/logs/save', {
         method: 'POST',
         body: jsonLogs,
         headers: {

@@ -41,7 +41,7 @@ make clear
 Create package, then move archive to _plugins_ folder on DTCD server and unarchive it with the following command:
 
 ```
-tar -zxf DTCD-LogSystem-*.tar.gz ./DTCD-LogSystem/LogSystem.js | mv ./DTCD-LogSystem/LogSystem.js LogSystem.js
+tar -zxf DTCD-LogSystem-*.tar.gz
 ```
 
 ## Built With
