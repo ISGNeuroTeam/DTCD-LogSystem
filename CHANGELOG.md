@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - changed endpoints
+- the way configuration sets in the system
+
+### Fixed
+
+- correct adding users global log level to configuration in localstorage
+- broken tests after fixing configuration setup
 
 ## [0.3.1] - 2021-03-18
 
