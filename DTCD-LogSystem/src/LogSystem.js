@@ -18,6 +18,7 @@ export class LogSystem extends SystemPlugin {
     };
     this.logs = [];
   }
+
   /**
    * Return meta information about plugin for registration in application
    * @returns {Object} - meta-info
@@ -39,21 +40,23 @@ export class LogSystem extends SystemPlugin {
    */
   async init() {
     try {
-      const config = localStorage.getItem('logSystemConfig');
-      if (config) {
-        this.config = JSON.parse(config);
-      } else {
-        const response = await fetch('v2/logs/configuration');
-        this.config = await response.json();
-      }
+      const response = await fetch('v2/logs/configuration');
+      this.config = await response.json();
     } catch (err) {
-      // console.error(err);
       this.config = {
         GlobalLogLevel: 'fatal',
-        BufferSize: 10000,
-        SendInterval: 150,
+        BufferSize: 11122,
+        SendInterval: 144,
       };
     } finally {
+      let localStorageConfig = this.#getConfig();
+      if (!localStorageConfig) {
+        localStorageConfig = {};
+        this.#saveConfig(localStorageConfig);
+      }
+      for (let prop in localStorageConfig) {
+        this.config[prop] = localStorageConfig[prop];
+      }
       this.globalLogLevel = this.config.GlobalLogLevel;
 
       this.bufferSize = this.config.BufferSize;
@@ -61,7 +64,6 @@ export class LogSystem extends SystemPlugin {
       this.intervalSeconds = this.config.SendInterval;
 
       this.intervalID = this.#createTimeInterval(this.intervalSeconds);
-      localStorage.setItem('logSystemConfig', JSON.stringify(this.config));
     }
   }
 
@@ -134,7 +136,6 @@ export class LogSystem extends SystemPlugin {
    */
   #uploadLogs() {
     try {
-      // console.log('sending logs...');
       const jsonLogs = JSON.stringify(this.logs);
       fetch('v2/logs/save', {
         method: 'POST',
@@ -323,8 +324,11 @@ export class LogSystem extends SystemPlugin {
    */
   setGlobalLogLevel(logLevel) {
     const level = this.#checkLogLevel(logLevel);
-    if (level) {
+    let config = this.#getConfig();
+    if (level && config) {
       this.globalLogLevel = level;
+      config[`GlobalLogLevel`] = level;
+      this.#saveConfig(config);
       return true;
     } else return false;
   }
