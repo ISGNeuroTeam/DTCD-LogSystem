@@ -2,25 +2,34 @@ import { SystemPlugin } from '../../DTCD-SDK/index';
 import sizeof from './utils/sizeof';
 
 export class LogSystem extends SystemPlugin {
+  #guid;
+  #logLevels;
+  #logs;
+  #config;
+  #globalLogLevel;
+  #bufferSize;
+  #intervalSeconds;
+  #intervalID;
   /**
    * @constructor
    * @param {String} guid guid of system instance
    */
   constructor(guid) {
     super();
-    this.guid = guid;
-    this.logLevels = {
+    this.#guid = guid;
+    this.#logLevels = {
       fatal: 1,
       error: 2,
       warn: 3,
       info: 4,
       debug: 5,
     };
-    this.logs = [];
+    this.#logs = [];
+    this.#config = {};
   }
 
   /**
-   * Return meta information about plugin for registration in application
+   * Returns meta information about plugin for registration in application
    * @returns {Object} - meta-info
    */
   static getRegistrationMeta() {
@@ -36,14 +45,62 @@ export class LogSystem extends SystemPlugin {
   }
 
   /**
+   * Returns guid of LogSystem instance
+   * @returns {String} - guid
+   */
+  get guid() {
+    return this.#guid;
+  }
+
+  /**
+   * Returns availiable log levels (keys) and their priority(values) of LogSystem instance
+   * @returns {Object} - meta-info
+   */
+  get logLevels() {
+    return this.#logLevels;
+  }
+
+  /**
+   * Returns log buffer of LogSystem instance
+   * @returns {Array} - meta-info
+   */
+  get logs() {
+    return this.#logs;
+  }
+
+  /**
+   * Returns current global log level of LogSystem instance
+   * @returns {String} - meta-info
+   */
+  get globalLogLevel() {
+    return this.#globalLogLevel;
+  }
+
+  /**
+   * Returns scheduler interval in seconds of LogSystem instance
+   * @returns {Number} - meta-info
+   */
+  get intervalSeconds() {
+    return this.#intervalSeconds;
+  }
+
+  /**
+   * Returns buffer size of LogSystem instance
+   * @returns {Number} - buffer size in bytes
+   */
+  get bufferSize() {
+    return this.#bufferSize;
+  }
+
+  /**
    * Initializes system configuration after creation of instance.  Must be called after creation!
    */
   async init() {
     try {
       const response = await fetch('v2/logs/configuration');
-      this.config = await response.json();
+      this.#config = await response.json();
     } catch (err) {
-      this.config = {
+      this.#config = {
         GlobalLogLevel: 'fatal',
         BufferSize: 11122,
         SendInterval: 144,
@@ -55,15 +112,15 @@ export class LogSystem extends SystemPlugin {
         this.#saveConfig(localStorageConfig);
       }
       for (let prop in localStorageConfig) {
-        this.config[prop] = localStorageConfig[prop];
+        this.#config[prop] = localStorageConfig[prop];
       }
-      this.globalLogLevel = this.config.GlobalLogLevel;
+      this.#globalLogLevel = this.#config.GlobalLogLevel;
 
-      this.bufferSize = this.config.BufferSize;
+      this.#bufferSize = this.#config.BufferSize;
 
-      this.intervalSeconds = this.config.SendInterval;
+      this.#intervalSeconds = this.#config.SendInterval;
 
-      this.intervalID = this.#createTimeInterval(this.intervalSeconds);
+      this.#intervalID = this.#createTimeInterval(this.#intervalSeconds);
     }
   }
 
@@ -74,9 +131,9 @@ export class LogSystem extends SystemPlugin {
    */
   #createTimeInterval(seconds) {
     return setInterval(() => {
-      if (this.logs.length > 0) {
+      if (this.#logs.length > 0) {
         this.#uploadLogs();
-        this.logs = [];
+        this.#logs = [];
       }
     }, seconds * 1000);
   }
@@ -109,23 +166,23 @@ export class LogSystem extends SystemPlugin {
         message: message,
       };
 
-      if (sizeof(object) > this.bufferSize) {
+      if (sizeof(object) > this.#bufferSize) {
         return false;
-      } else if (sizeof(object) + sizeof(this.logs) > this.bufferSize) {
+      } else if (sizeof(object) + sizeof(this.#logs) > this.#bufferSize) {
         try {
           this.#uploadLogs();
         } catch (err) {
           console.log(err);
         } finally {
-          this.logs = [];
-          if (this.intervalSeconds) {
-            clearInterval(this.intervalID);
-            this.intervalID = this.#createTimeInterval(this.intervalSeconds);
+          this.#logs = [];
+          if (this.#intervalSeconds) {
+            clearInterval(this.#intervalID);
+            this.#intervalID = this.#createTimeInterval(this.#intervalSeconds);
           }
-          this.logs.push(object);
+          this.#logs.push(object);
         }
       } else {
-        this.logs.push(object);
+        this.#logs.push(object);
       }
       return true;
     } else return false;
@@ -136,7 +193,7 @@ export class LogSystem extends SystemPlugin {
    */
   #uploadLogs() {
     try {
-      const jsonLogs = JSON.stringify(this.logs);
+      const jsonLogs = JSON.stringify(this.#logs);
       fetch('v2/logs/save', {
         method: 'POST',
         body: jsonLogs,
@@ -180,14 +237,14 @@ export class LogSystem extends SystemPlugin {
   #checkLogLevel(logLevel) {
     if (
       typeof logLevel == 'string' &&
-      Object.keys(this.logLevels).indexOf(logLevel.toLocaleLowerCase()) > -1
+      Object.keys(this.#logLevels).indexOf(logLevel.toLocaleLowerCase()) > -1
     ) {
       return logLevel.toLocaleLowerCase();
     } else if (
       typeof logLevel == 'number' &&
-      Object.values(this.logLevels).indexOf(logLevel) > -1
+      Object.values(this.#logLevels).indexOf(logLevel) > -1
     ) {
-      return Object.keys(this.logLevels).find(key => this.logLevels[key] == logLevel);
+      return Object.keys(this.#logLevels).find(key => this.#logLevels[key] == logLevel);
     } else return false;
   }
 
@@ -226,7 +283,7 @@ export class LogSystem extends SystemPlugin {
    */
   fatal(guid, pluginName, message) {
     const level = this.getPluginLogLevel(guid, pluginName);
-    if (this.logLevels[level] >= this.logLevels['fatal']) {
+    if (this.#logLevels[level] >= this.#logLevels['fatal']) {
       return this.#log('fatal', guid, pluginName, message);
     }
   }
@@ -240,7 +297,7 @@ export class LogSystem extends SystemPlugin {
    */
   error(guid, pluginName, message) {
     const level = this.getPluginLogLevel(guid, pluginName);
-    if (this.logLevels[level] >= this.logLevels['error']) {
+    if (this.#logLevels[level] >= this.#logLevels['error']) {
       return this.#log('error', guid, pluginName, message);
     }
   }
@@ -254,7 +311,7 @@ export class LogSystem extends SystemPlugin {
    */
   warn(guid, pluginName, message) {
     const level = this.getPluginLogLevel(guid, pluginName);
-    if (this.logLevels[level] >= this.logLevels['warn']) {
+    if (this.#logLevels[level] >= this.#logLevels['warn']) {
       return this.#log('warn', guid, pluginName, message);
     }
   }
@@ -268,7 +325,7 @@ export class LogSystem extends SystemPlugin {
    */
   info(guid, pluginName, message) {
     const level = this.getPluginLogLevel(guid, pluginName);
-    if (this.logLevels[level] >= this.logLevels['info']) {
+    if (this.#logLevels[level] >= this.#logLevels['info']) {
       return this.#log('info', guid, pluginName, message);
     }
   }
@@ -282,7 +339,7 @@ export class LogSystem extends SystemPlugin {
    */
   debug(guid, pluginName, message) {
     const level = this.getPluginLogLevel(guid, pluginName);
-    if (this.logLevels[level] >= this.logLevels['debug']) {
+    if (this.#logLevels[level] >= this.#logLevels['debug']) {
       return this.#log('debug', guid, pluginName, message);
     }
   }
@@ -298,8 +355,8 @@ export class LogSystem extends SystemPlugin {
   invokeOnLevel(guid, pluginName, logLevel, callback) {
     if (typeof callback != 'function') return false;
     const givenLevel = this.#checkLogLevel(logLevel);
-    const pluginLevel = this.config[`${guid}${pluginName}`] || this.globalLogLevel;
-    if (givenLevel && this.logLevels[pluginLevel] >= this.logLevels[givenLevel]) {
+    const pluginLevel = this.#config[`${guid}${pluginName}`] || this.#globalLogLevel;
+    if (givenLevel && this.#logLevels[pluginLevel] >= this.#logLevels[givenLevel]) {
       const result = callback();
       if (result instanceof Promise) {
         result.then(message => {
@@ -314,7 +371,7 @@ export class LogSystem extends SystemPlugin {
    * @returns {String} - current global log level
    */
   getGlobalLogLevel() {
-    return this.globalLogLevel;
+    return this.#globalLogLevel;
   }
 
   /**
@@ -326,7 +383,7 @@ export class LogSystem extends SystemPlugin {
     const level = this.#checkLogLevel(logLevel);
     let config = this.#getConfig();
     if (level && config) {
-      this.globalLogLevel = level;
+      this.#globalLogLevel = level;
       config[`GlobalLogLevel`] = level;
       this.#saveConfig(config);
       return true;
@@ -340,7 +397,7 @@ export class LogSystem extends SystemPlugin {
    * @returns {String} - current log level of plugin
    */
   getPluginLogLevel(guid, pluginName) {
-    return this.config[`${guid}${pluginName}`] || this.globalLogLevel;
+    return this.#config[`${guid}${pluginName}`] || this.#globalLogLevel;
   }
 
   /**
@@ -355,7 +412,7 @@ export class LogSystem extends SystemPlugin {
     let config = this.#getConfig();
     if (config && level) {
       config[`${guid}${pluginName}`] = level;
-      this.config[`${guid}${pluginName}`] = level;
+      this.#config[`${guid}${pluginName}`] = level;
       this.#saveConfig(config);
       return true;
     } else {
@@ -373,7 +430,7 @@ export class LogSystem extends SystemPlugin {
     let config = this.#getConfig();
     if (config) {
       delete config[`${guid}${pluginName}`];
-      delete this.config[`${guid}${pluginName}`];
+      delete this.#config[`${guid}${pluginName}`];
       this.#saveConfig(config);
       return true;
     } else {

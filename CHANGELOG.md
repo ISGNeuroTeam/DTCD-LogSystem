@@ -10,9 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - firefox support in getFunctionCaller method
+- added getters for class fields
 
 ### Changed
 
+- all class fields are privatre and accessible from getters
 - changed endpoints
 - the way configuration sets in the system
 
