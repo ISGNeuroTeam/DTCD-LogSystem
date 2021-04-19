@@ -10,7 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - firefox support in getFunctionCaller method
-- added getters for class fields
+- getters for class fields
+- consoleOutputMode flag which enables printing logs to F12 dev-tools console
+- info logs for audit
 
 ### Changed
 
