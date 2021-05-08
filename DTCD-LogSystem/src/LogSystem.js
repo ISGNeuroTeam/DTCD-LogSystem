@@ -99,7 +99,10 @@ export class LogSystem extends SystemPlugin {
 
   set consoleOutputMode(value) {
     if (typeof value != 'boolean') return;
+    let config = this.#getConfig();
+    config['consoleOutputMode'] = value;
     this.#consoleOutputMode = value;
+    this.#saveConfig(config);
   }
 
   /**
@@ -114,6 +117,7 @@ export class LogSystem extends SystemPlugin {
         GlobalLogLevel: 'fatal',
         BufferSize: 11122,
         SendInterval: 144,
+        consoleOutputMode: false,
       };
     } finally {
       let localStorageConfig = this.#getConfig();
@@ -129,6 +133,7 @@ export class LogSystem extends SystemPlugin {
       this.#bufferSize = this.#config.BufferSize;
 
       this.#intervalSeconds = this.#config.SendInterval;
+      this.#consoleOutputMode = this.#config.consoleOutputMode;
 
       this.#intervalID = this.#createTimeInterval(this.#intervalSeconds);
     }
@@ -195,12 +200,20 @@ export class LogSystem extends SystemPlugin {
         this.#logs.push(object);
       }
       if (this.#consoleOutputMode) {
-        console.log(`timestamp: ${object.timestamps},\n
-        guid: ${object.guid},\n
-        plugin: ${object.plugin},\n
-        logLevel: ${object.logLevel},\n
-        caller: ${object.caller},\n
-        message: ${object.message}`);
+        // prettier-ignore
+        console.log(`%ctimestamp:%c ${object.timestamps},
+%cguid:%c ${object.guid},
+%cplugin:%c ${object.plugin},
+%clogLevel:%c ${object.logLevel},
+%ccaller:%c ${object.caller},
+%cmessage:%c ${object.message}`,
+        'font-weight:bold','',
+        'font-weight:bold','',
+        'font-weight:bold','',
+        'font-weight:bold','',
+        'font-weight:bold','',
+        'font-weight:bold',''
+        );
       }
       return true;
     } else return false;
@@ -253,15 +266,9 @@ export class LogSystem extends SystemPlugin {
    * @returns {String} - log level if exist in system
    */
   #checkLogLevel(logLevel) {
-    if (
-      typeof logLevel == 'string' &&
-      Object.keys(this.#logLevels).indexOf(logLevel.toLocaleLowerCase()) > -1
-    ) {
+    if (typeof logLevel == 'string' && Object.keys(this.#logLevels).indexOf(logLevel.toLocaleLowerCase()) > -1) {
       return logLevel.toLocaleLowerCase();
-    } else if (
-      typeof logLevel == 'number' &&
-      Object.values(this.#logLevels).indexOf(logLevel) > -1
-    ) {
+    } else if (typeof logLevel == 'number' && Object.values(this.#logLevels).indexOf(logLevel) > -1) {
       return Object.keys(this.#logLevels).find(key => this.#logLevels[key] == logLevel);
     } else return false;
   }
@@ -405,11 +412,7 @@ export class LogSystem extends SystemPlugin {
       this.#globalLogLevel = level;
       config[`GlobalLogLevel`] = level;
       this.#saveConfig(config);
-      this.info(
-        this.guid,
-        'LogSystem',
-        `Global log level changed from "${tempLevel}" to "${level}"`
-      );
+      this.info(this.guid, 'LogSystem', `Global log level changed from "${tempLevel}" to "${level}"`);
       return true;
     } else return false;
   }
@@ -461,11 +464,7 @@ export class LogSystem extends SystemPlugin {
       delete config[`${guid}${pluginName}`];
       delete this.#config[`${guid}${pluginName}`];
       this.#saveConfig(config);
-      this.info(
-        this.guid,
-        'LogSystem',
-        `Log level of plugin "${pluginName}" with guid "${guid}" was reseted`
-      );
+      this.info(this.guid, 'LogSystem', `Log level of plugin "${pluginName}" with guid "${guid}" was reseted`);
       return true;
     } else {
       return false;

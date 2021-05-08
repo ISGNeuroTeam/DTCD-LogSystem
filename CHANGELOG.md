@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - getters for class fields
 - consoleOutputMode flag which enables printing logs to F12 dev-tools console
 - info logs for audit
+- consoleOutputMode now stored in localStorage as well
+- styles for consoleOutputMode messages in console
 
 ### Changed
 
@@ -24,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - correct adding users global log level to configuration in localstorage
 - broken tests after fixing configuration setup
+- rollup build file issue with building path
 
 ## [0.3.1] - 2021-03-18
 

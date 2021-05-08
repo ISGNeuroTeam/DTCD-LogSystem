@@ -23,14 +23,10 @@ describe('LogSystem:init()', () => {
   test('inicializes correct params from localStorage', async () => {
     fetch.mockImplementationOnce(() =>
       Promise.resolve({
-        json: () =>
-          Promise.resolve({ BufferSize: 11111, SendInterval: 171, GlobalLogLevel: 'fatal' }),
+        json: () => Promise.resolve({ BufferSize: 11111, SendInterval: 171, GlobalLogLevel: 'fatal' }),
       })
     );
-    localStorage.setItem(
-      'logSystemConfig',
-      JSON.stringify({ BufferSize: 22222, GlobalLogLevel: 'warn' })
-    );
+    localStorage.setItem('logSystemConfig', JSON.stringify({ BufferSize: 22222, GlobalLogLevel: 'warn' }));
     await ls.init();
     expect(ls.bufferSize).toBe(22222);
     expect(ls.intervalSeconds).toBe(171);
@@ -41,8 +37,7 @@ describe('LogSystem:init()', () => {
   test('inicializes correct params to system from API', async () => {
     fetch.mockImplementation(() =>
       Promise.resolve({
-        json: () =>
-          Promise.resolve({ BufferSize: 11111, SendInterval: 157, GlobalLogLevel: 'warn' }),
+        json: () => Promise.resolve({ BufferSize: 11111, SendInterval: 157, GlobalLogLevel: 'warn' }),
       })
     );
     await ls.init();
@@ -69,8 +64,7 @@ describe('LogSystem:init()', () => {
     );
     fetch.mockImplementationOnce(() =>
       Promise.resolve({
-        json: () =>
-          Promise.resolve({ BufferSize: 11111, SendInterval: 157, GlobalLogLevel: 'warn' }),
+        json: () => Promise.resolve({ BufferSize: 11111, SendInterval: 157, GlobalLogLevel: 'warn' }),
       })
     );
     jest.useFakeTimers();
@@ -166,8 +160,7 @@ describe('LogSystem:fatal()', () => {
     await ls.init();
     fetch.mockImplementationOnce(() =>
       Promise.resolve({
-        json: () =>
-          Promise.resolve({ BufferSize: 11111, SendInterval: 171, GlobalLogLevel: 'fatal' }),
+        json: () => Promise.resolve({ BufferSize: 11111, SendInterval: 171, GlobalLogLevel: 'fatal' }),
       })
     );
     expect(ls.logs.length).toBe(0);
@@ -230,8 +223,7 @@ describe('LogSystem:error()', () => {
     await ls.init();
     fetch.mockImplementationOnce(() =>
       Promise.resolve({
-        json: () =>
-          Promise.resolve({ BufferSize: 11111, SendInterval: 171, GlobalLogLevel: 'fatal' }),
+        json: () => Promise.resolve({ BufferSize: 11111, SendInterval: 171, GlobalLogLevel: 'fatal' }),
       })
     );
     expect(ls.logs.length).toBe(0);
@@ -248,8 +240,7 @@ describe('LogSystem:error()', () => {
     await ls.init();
     fetch.mockImplementationOnce(() =>
       Promise.resolve({
-        json: () =>
-          Promise.resolve({ BufferSize: 11111, SendInterval: 171, GlobalLogLevel: 'fatal' }),
+        json: () => Promise.resolve({ BufferSize: 11111, SendInterval: 171, GlobalLogLevel: 'fatal' }),
       })
     );
     expect(ls.logs.length).toBe(0);
@@ -312,8 +303,7 @@ describe('LogSystem:warn()', () => {
     await ls.init();
     fetch.mockImplementationOnce(() =>
       Promise.resolve({
-        json: () =>
-          Promise.resolve({ BufferSize: 11111, SendInterval: 171, GlobalLogLevel: 'fatal' }),
+        json: () => Promise.resolve({ BufferSize: 11111, SendInterval: 171, GlobalLogLevel: 'fatal' }),
       })
     );
     expect(ls.logs.length).toBe(0);
@@ -330,8 +320,7 @@ describe('LogSystem:warn()', () => {
     await ls.init();
     fetch.mockImplementationOnce(() =>
       Promise.resolve({
-        json: () =>
-          Promise.resolve({ BufferSize: 11111, SendInterval: 171, GlobalLogLevel: 'fatal' }),
+        json: () => Promise.resolve({ BufferSize: 11111, SendInterval: 171, GlobalLogLevel: 'fatal' }),
       })
     );
     expect(ls.logs.length).toBe(0);
@@ -394,8 +383,7 @@ describe('LogSystem:info()', () => {
     await ls.init();
     fetch.mockImplementationOnce(() =>
       Promise.resolve({
-        json: () =>
-          Promise.resolve({ BufferSize: 11111, SendInterval: 171, GlobalLogLevel: 'fatal' }),
+        json: () => Promise.resolve({ BufferSize: 11111, SendInterval: 171, GlobalLogLevel: 'fatal' }),
       })
     );
     expect(ls.logs.length).toBe(0);
@@ -412,8 +400,7 @@ describe('LogSystem:info()', () => {
     await ls.init();
     fetch.mockImplementationOnce(() =>
       Promise.resolve({
-        json: () =>
-          Promise.resolve({ BufferSize: 11111, SendInterval: 171, GlobalLogLevel: 'fatal' }),
+        json: () => Promise.resolve({ BufferSize: 11111, SendInterval: 171, GlobalLogLevel: 'fatal' }),
       })
     );
     expect(ls.logs.length).toBe(0);
@@ -476,8 +463,7 @@ describe('LogSystem:debug()', () => {
     await ls.init();
     fetch.mockImplementationOnce(() =>
       Promise.resolve({
-        json: () =>
-          Promise.resolve({ BufferSize: 11111, SendInterval: 171, GlobalLogLevel: 'fatal' }),
+        json: () => Promise.resolve({ BufferSize: 11111, SendInterval: 171, GlobalLogLevel: 'fatal' }),
       })
     );
     expect(ls.logs.length).toBe(0);
@@ -494,8 +480,7 @@ describe('LogSystem:debug()', () => {
     await ls.init();
     fetch.mockImplementationOnce(() =>
       Promise.resolve({
-        json: () =>
-          Promise.resolve({ BufferSize: 11111, SendInterval: 171, GlobalLogLevel: 'fatal' }),
+        json: () => Promise.resolve({ BufferSize: 11111, SendInterval: 171, GlobalLogLevel: 'fatal' }),
       })
     );
     expect(ls.logs.length).toBe(0);
