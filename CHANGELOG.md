@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - correct adding users global log level to configuration in localstorage
 - broken tests after fixing configuration setup
 - rollup build file issue with building path
+- correctly setting system config if server response empty json
 
 ## [0.3.1] - 2021-03-18
 

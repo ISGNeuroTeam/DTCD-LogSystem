@@ -128,12 +128,12 @@ export class LogSystem extends SystemPlugin {
       for (let prop in localStorageConfig) {
         this.#config[prop] = localStorageConfig[prop];
       }
-      this.#globalLogLevel = this.#config.GlobalLogLevel;
+      this.#globalLogLevel = this.#config?.GlobalLogLevel || 'fatal';
 
-      this.#bufferSize = this.#config.BufferSize;
+      this.#bufferSize = this.#config?.BufferSize || 11122;
 
-      this.#intervalSeconds = this.#config.SendInterval;
-      this.#consoleOutputMode = this.#config.consoleOutputMode;
+      this.#intervalSeconds = this.#config?.SendInterval || 144;
+      this.#consoleOutputMode = this.#config?.consoleOutputMode || false;
 
       this.#intervalID = this.#createTimeInterval(this.#intervalSeconds);
     }
