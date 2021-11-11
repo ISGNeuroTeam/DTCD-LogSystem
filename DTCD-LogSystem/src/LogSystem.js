@@ -110,7 +110,7 @@ export class LogSystem extends SystemPlugin {
    */
   async init() {
     try {
-      const response = await fetch('v2/logs/configuration');
+      const response = await fetch('mock_server/v1/logs/object');
       this.#config = await response.json();
     } catch (err) {
       this.#config = {
@@ -225,7 +225,7 @@ export class LogSystem extends SystemPlugin {
   #uploadLogs() {
     try {
       const jsonLogs = JSON.stringify(this.#logs);
-      fetch('v2/logs/save', {
+      fetch('mock_server/v1/logs/object', {
         method: 'POST',
         body: jsonLogs,
         headers: {
@@ -266,9 +266,15 @@ export class LogSystem extends SystemPlugin {
    * @returns {String} - log level if exist in system
    */
   #checkLogLevel(logLevel) {
-    if (typeof logLevel == 'string' && Object.keys(this.#logLevels).indexOf(logLevel.toLocaleLowerCase()) > -1) {
+    if (
+      typeof logLevel == 'string' &&
+      Object.keys(this.#logLevels).indexOf(logLevel.toLocaleLowerCase()) > -1
+    ) {
       return logLevel.toLocaleLowerCase();
-    } else if (typeof logLevel == 'number' && Object.values(this.#logLevels).indexOf(logLevel) > -1) {
+    } else if (
+      typeof logLevel == 'number' &&
+      Object.values(this.#logLevels).indexOf(logLevel) > -1
+    ) {
       return Object.keys(this.#logLevels).find(key => this.#logLevels[key] == logLevel);
     } else return false;
   }
@@ -412,7 +418,11 @@ export class LogSystem extends SystemPlugin {
       this.#globalLogLevel = level;
       config[`GlobalLogLevel`] = level;
       this.#saveConfig(config);
-      this.info(this.guid, 'LogSystem', `Global log level changed from "${tempLevel}" to "${level}"`);
+      this.info(
+        this.guid,
+        'LogSystem',
+        `Global log level changed from "${tempLevel}" to "${level}"`
+      );
       return true;
     } else return false;
   }
@@ -464,7 +474,11 @@ export class LogSystem extends SystemPlugin {
       delete config[`${guid}${pluginName}`];
       delete this.#config[`${guid}${pluginName}`];
       this.#saveConfig(config);
-      this.info(this.guid, 'LogSystem', `Log level of plugin "${pluginName}" with guid "${guid}" was reseted`);
+      this.info(
+        this.guid,
+        'LogSystem',
+        `Log level of plugin "${pluginName}" with guid "${guid}" was reseted`
+      );
       return true;
     } else {
       return false;
