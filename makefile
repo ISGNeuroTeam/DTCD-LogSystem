@@ -8,73 +8,94 @@ Addition section:
 endef
 
 PROJECT_NAME = DTCD-LogSystem
+PLUGIN_NAME = LogSystem
 
-GENERATE_VERSION = $(shell jq .version ./${PROJECT_NAME}/package.json)
+GENERATE_VERSION = $(shell jq .version ./${PROJECT_NAME}/package.json )
 GENERATE_BRANCH = $(shell git name-rev $$(git rev-parse HEAD) | cut -d\  -f2 | sed -re 's/^(remotes\/)?origin\///' | tr '/' '_')
 
 SET_VERSION = $(eval VERSION=$(GENERATE_VERSION))
 SET_BRANCH = $(eval BRANCH=$(GENERATE_BRANCH))
+SET_PACK_NAME = $(eval PACK_NAME=$(PROJECT_NAME)-$(VERSION)-$(BRANCH).tar.gz)
 
-DEV_STORAGE = http://storage.dev.isgneuro.com/repository/components
-SDK = DTCD-SDK
-SDK_URL = $(DEV_STORAGE)/$(SDK)/$(SDK)-0.1.1-master-0002.tar.gz
+DEV_STORAGE = https://storage.dev.isgneuro.com/repository/components
+DTCD_SDK = DTCD-SDK
+DTCD_SDK_URL = $(DEV_STORAGE)/$(DTCD_SDK)/$(DTCD_SDK)-0.1.1-develop-0004.tar.gz
 
 .SILENT:
 
-COMPONENTS :
+COMPONENTS: sdk 
 
 export ANNOUNCE_BODY
+
 all:
 	echo "$$ANNOUNCE_BODY"
 
-pack: build
-	$(SET_BRANCH)
-	$(SET_VERSION)
-	echo Create archive \"$(PROJECT_NAME)-$(VERSION)-$(BRANCH).tar.gz\"
-	cd build; tar czf ../$(PROJECT_NAME)-$(VERSION)-$(BRANCH).tar.gz .
-
-build: ${PROJECT_NAME}/node_modules $(COMPONENTS)
+build: $(PROJECT_NAME)/node_modules COMPONENTS
 	# required section
-	echo Building...
-	$(SET_VERSION)
-	if test ! -d DTCD-SDK; \
-	then curl $(SDK_URL) | tar -zx ./$(SDK);\
-	else echo DTCD-SDK alredy downloaded; \
-  fi
-	echo Start command: npm run build
+	echo Removing previous build...
+	rm -rf ./build/
+	echo Building started...
 	npm run build --prefix ./$(PROJECT_NAME)
-	mkdir build
-	mkdir build/$(PROJECT_NAME)
-	cp -r ./$(PROJECT_NAME)/dist/* ./build/$(PROJECT_NAME)
-	cp README.md build/
-	cp CHANGELOG.md build/
-	cp LICENSE.md build/
+	mv ./$(PROJECT_NAME)/build ./
+	cp README.md ./build/
+	cp CHANGELOG.md ./build/
+	cp LICENSE.md ./build/;
+	mkdir ./build/$(PROJECT_NAME) && mv ./build/$(PLUGIN_NAME).js ./build/$(PROJECT_NAME);
+	if [ -d ./$(PROJECT_NAME)/dependencies/ ];\
+		then echo Prepare dependencies for $(PROJECT_NAME) in build directory...;\
+		cp -r ./$(PROJECT_NAME)/dependencies ./build/$(PROJECT_NAME);\
+		cat ./build/$(PROJECT_NAME)/dependencies/manifest.json | jq 'map(del(.source))' > ./build/$(PROJECT_NAME)/manifest.json;\
+		rm ./build/$(PROJECT_NAME)/dependencies/manifest.json;\
+		cat ./$(PROJECT_NAME)/dependencies/manifest.json |  jq -r '.[] | "\(.source) \(.fileName)"' | grep -vP '^null ' | xargs -n2 -r sh -c 'curl $$1 -o ./build/$(PROJECT_NAME)/dependencies/$$2' sh;\
+		else echo no dependencies folder. ;\
+	fi
+	echo Building completed;
+	# required section
 
 clean:
-	# required section"
-	$(SET_VERSION)
-	$(SET_PROJECT_NAME)
-	rm -rf build ./$(PROJECT_NAME)/dist ./$(PROJECT_NAME)/node_modules/ ./*-lock.* ./$(PROJECT_NAME)/*-lock.* $(PROJECT_NAME)-*.tar.gz \
-	DTCD-SDK
-
-test: $(PROJECT_NAME)/node_modules
 	# required section
-	echo "Testing..."
-	echo $(PROJECT_NAME)
-	if test ! -d DTCD-SDK; \
-	then curl $(SDK_URL) | tar -zx ./$(SDK);\
-	else echo DTCD-SDK alredy downloaded; \
-  fi
-	npm run --prefix ./$(PROJECT_NAME) test
-	
-dev: ${PROJECT_NAME}/node_modules $(COMPONENTS)
-	echo Development mode!
-	if test ! -d DTCD-SDK; \
-	then curl $(SDK_URL) | tar -zx ./$(SDK);\
-	else echo DTCD-SDK alredy downloaded; \
-  fi
-	npm run dev --prefix ./$(PROJECT_NAME)
+	echo Cleaning started...
+	rm -rf ./build/
+	rm -rf *.tar.gz
+	rm -rf ./$(DTCD_SDK)/
+	rm -rf ./$(PROJECT_NAME)/node_modules/
+	rm -rf ./$(PROJECT_NAME)/package-lock.json
+	rm -rf ./$(PROJECT_NAME)/dependencies/*.js
+	echo Cleaning completed.
+	# required section
+
+test: $(PROJECT_NAME)/node_modules COMPONENTS
+	# required section
+	echo Testing started...
+	npm run test --prefix ./$(PROJECT_NAME)
+	echo Testing completed.
+	# required section
+
+pack: build
+	# required section
+	$(SET_BRANCH)
+	$(SET_VERSION)
+	$(SET_PACK_NAME)
+	echo Creating \"$(PACK_NAME)\" archive...
+	cd ./build/ && tar czf ../$(PACK_NAME) .
+	echo Archive \"$(PACK_NAME)\" created successfully.
+	# required section
 
 $(PROJECT_NAME)/node_modules:
-	echo Start command: npm i
-	npm i --prefix ./$(PROJECT_NAME)
+	echo Installing project dependencies...
+	if ! [ -d ./$(PROJECT_NAME)/node_modules ];\
+		then npm i --prefix ./$(PROJECT_NAME) && echo Project dependencies downloaded.;\
+		else echo Project dependencies is already downloaded.;\
+	fi
+
+sdk:
+	echo $(DTCD_SDK_URL)
+	echo Downloading $(DTCD_SDK)...
+	if ! [ -d ./$(DTCD_SDK) ];\
+		then curl -# -Lk $(DTCD_SDK_URL) | tar -zx ./$(DTCD_SDK) && echo $(DTCD_SDK) downloaded.;\
+		else echo $(DTCD_SDK) is already downloaded.;\
+	fi
+
+dev: build
+	cp -rf ./build/$(PROJECT_NAME) ./../DTCD/server/plugins
+	npm run dev --prefix ./$(PROJECT_NAME)

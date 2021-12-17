@@ -5,11 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0]
+
+### Added
+
+- firefox support in getFunctionCaller method
+- getters for class fields
+- consoleOutputMode flag which enables printing logs to F12 dev-tools console
+- info logs for audit
+- consoleOutputMode now stored in localStorage as well
+- styles for consoleOutputMode messages in console
+
+### Changed
+
+- all class fields are privatre and accessible from getters
+- changed endpoints
+- the way configuration sets in the system
+
+### Fixed
+
+- correct adding users global log level to configuration in localstorage
+- broken tests after fixing configuration setup
+- rollup build file issue with building path
+- correctly setting system config if server response empty json
+
 ## [0.3.1] - 2021-03-18
 
 ### Fixed
 
--configuration endpoint name
+- configuration endpoint name
 
 ## [0.3.0] - 2021-03-18
 

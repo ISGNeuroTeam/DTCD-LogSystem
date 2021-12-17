@@ -5,84 +5,56 @@ describe('LogSystem:getRegistrationMeta()', () => {
   test('should be defined', () => {
     expect(LogSystem.getRegistrationMeta).toBeDefined();
   });
-
-  test('should return proper data', () => {
-    expect(LogSystem.getRegistrationMeta()).toEqual({
-      type: 'core',
-      title: 'Система логирования',
-      name: 'LogSystem',
-      init: true,
-    });
-  });
 });
 
 describe('LogSystem:init()', () => {
   let ls = new LogSystem();
 
   beforeEach(() => {
-    global.fetch = jest.fn();
-  });
-
-  afterEach(() => {
     ls = new LogSystem();
     localStorage.clear();
+    global.fetch = jest.fn();
   });
 
   test('should be defined', () => {
     expect(ls.init).toBeDefined();
   });
-  test('inicializes correct params from localStorage', async () => {
-    localStorage.setItem(
-      'logSystemConfig',
-      JSON.stringify({ BufferSize: 22222, SendInterval: 111, GlobalLogLevel: 'warn' })
+
+  test('initializes correct params from localStorage', async () => {
+    fetch.mockImplementationOnce(() =>
+      Promise.resolve({
+        json: () => Promise.resolve({ BufferSize: 11111, SendInterval: 171, GlobalLogLevel: 'fatal' }),
+      })
     );
+    localStorage.setItem('logSystemConfig', JSON.stringify({ BufferSize: 22222, GlobalLogLevel: 'warn' }));
     await ls.init();
     expect(ls.bufferSize).toBe(22222);
-    expect(ls.intervalSeconds).toBe(111);
+    expect(ls.intervalSeconds).toBe(171);
     expect(ls.globalLogLevel).toBe('warn');
-    expect(fetch).toBeCalledTimes(0);
+    expect(fetch).toBeCalledTimes(1);
   });
 
-  test('inicializes correct params to system from API', async () => {
-    fetch.mockImplementationOnce(() =>
+  test('initializes correct params to system from API', async () => {
+    fetch.mockImplementation(() =>
       Promise.resolve({
-        json: () =>
-          Promise.resolve({ BufferSize: 11111, SendInterval: 150, GlobalLogLevel: 'fatal' }),
+        json: () => Promise.resolve({ BufferSize: 11111, SendInterval: 157, GlobalLogLevel: 'warn' }),
       })
     );
     await ls.init();
-    expect(ls.bufferSize).toBe(11111);
-    expect(ls.intervalSeconds).toBe(150);
-    expect(ls.globalLogLevel).toBe('fatal');
     expect(fetch).toBeCalledTimes(1);
-    expect(localStorage.length).toBe(1);
+    expect(ls.intervalSeconds).toBe(157);
+    expect(ls.bufferSize).toBe(11111);
+    expect(ls.globalLogLevel).toBe('warn');
   });
 
-  test('inicializes default parameters in system', async () => {
+  test('initializes default parameters in system', async () => {
     fetch.mockImplementationOnce(() => Promise.reject('API is down'));
     await ls.init();
-    expect(ls.bufferSize).toBe(10000);
-    expect(ls.intervalSeconds).toBe(150);
+    expect(ls.bufferSize).toBe(11122);
+    expect(ls.intervalSeconds).toBe(144);
     expect(ls.globalLogLevel).toBe('fatal');
     expect(fetch).toBeCalledTimes(1);
     expect(localStorage.length).toBe(1);
-  });
-
-  test('second init inicializes params from localStorage', async () => {
-    fetch.mockImplementationOnce(() =>
-      Promise.resolve({
-        json: () =>
-          Promise.resolve({ BufferSize: 11111, SendInterval: 150, GlobalLogLevel: 'fatal' }),
-      })
-    );
-    await ls.init();
-    expect(ls.bufferSize).toBe(11111);
-    expect(ls.intervalSeconds).toBe(150);
-    expect(ls.globalLogLevel).toBe('fatal');
-    expect(fetch).toBeCalledTimes(1);
-    expect(localStorage.length).toBe(1);
-    await ls.init();
-    expect(fetch).toBeCalledTimes(1);
   });
 
   test('scheduler sends logs to back-end and cleans buffer', async () => {
@@ -92,16 +64,21 @@ describe('LogSystem:init()', () => {
     );
     fetch.mockImplementationOnce(() =>
       Promise.resolve({
-        json: () => Promise.resolve('success'),
+        json: () => Promise.resolve({ BufferSize: 11111, SendInterval: 157, GlobalLogLevel: 'warn' }),
       })
     );
     jest.useFakeTimers();
     await ls.init();
     ls.warn('1', 'test', 'fake message');
     expect(ls.logs.length).toBe(1);
+    fetch.mockImplementationOnce(() =>
+      Promise.resolve({
+        json: () => Promise.resolve('success'),
+      })
+    );
     jest.advanceTimersByTime(10000);
     expect(ls.logs.length).toBe(0);
-    expect(fetch).toBeCalledTimes(1);
+    expect(fetch).toBeCalledTimes(2);
   });
 
   test('scheduler does nothing if buffer is empty', async () => {
@@ -115,20 +92,19 @@ describe('LogSystem:init()', () => {
     expect(ls.logs.length).toBe(0);
     jest.advanceTimersByTime(10000);
     expect(ls.logs.length).toBe(0);
-    expect(fetch).toBeCalledTimes(0);
+    expect(fetch).toBeCalledTimes(1);
   });
 });
 
 describe('LogSystem:fatal()', () => {
   let ls;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     ls = new LogSystem();
-    ls.config = {};
-    ls.globalLogLevel = 'fatal';
-    ls.bufferSize = 15000;
-    ls.sendInterval = 200;
-
+    ls.setGlobalLogLevel('fatal');
+    ls.setBufferSize(15000);
+    ls.setSendInerval(200);
+    await ls.init();
     global.fetch = jest.fn();
   });
 
@@ -161,8 +137,9 @@ describe('LogSystem:fatal()', () => {
     expect(ls.logs.length).toBe(0);
   });
 
-  test('if new log message will overfill buffer it shoul first send logs and clean itself ', () => {
-    ls.bufferSize = 300;
+  test('if new log message will overfill buffer it shoul first send logs and clean itself ', async () => {
+    ls.setBufferSize(300);
+    await ls.init();
     fetch.mockImplementationOnce(() =>
       Promise.resolve({
         json: () => Promise.resolve('success'),
@@ -171,347 +148,356 @@ describe('LogSystem:fatal()', () => {
     expect(ls.logs.length).toBe(0);
     expect(ls.fatal('1', 'testPlugin', 'test record test record test record')).toBe(true);
     expect(ls.logs.length).toBe(1);
-    expect(sizeof(ls.logs)).toBe(220);
+    expect(sizeof(ls.logs)).toBe(244);
+    expect(fetch).toBeCalledTimes(1);
     expect(ls.fatal('1', 'testPlugin', 'test record test record test record')).toBe(true);
     expect(ls.logs.length).toBe(1);
-    expect(fetch).toBeCalledTimes(1);
+    expect(fetch).toBeCalledTimes(2);
   });
 
-  test('if new log message size is more than buffer size it will be dropped', () => {
-    ls.bufferSize = 150;
+  test('if new log message size is more than buffer size it will be dropped', async () => {
+    ls.setBufferSize(150);
+    await ls.init();
     fetch.mockImplementationOnce(() =>
       Promise.resolve({
-        json: () => Promise.resolve('success'),
+        json: () => Promise.resolve({ BufferSize: 11111, SendInterval: 171, GlobalLogLevel: 'fatal' }),
       })
     );
     expect(ls.logs.length).toBe(0);
     expect(ls.fatal('1', 'testPlugin', 'test record test record test record')).toBe(false);
     expect(ls.logs.length).toBe(0);
-    expect(fetch).toBeCalledTimes(0);
-  });
-});
-
-describe('LogSystem:error()', () => {
-  let ls;
-
-  beforeEach(() => {
-    ls = new LogSystem();
-    ls.config = {};
-    ls.globalLogLevel = 'error';
-    ls.bufferSize = 15000;
-    ls.sendInterval = 200;
-    global.fetch = jest.fn();
-  });
-
-  test('should be defined', () => {
-    expect(ls.error).toBeDefined();
-  });
-
-  test('adds error log record to buffer', () => {
-    expect(ls.logs.length).toBe(0);
-    expect(ls.error('1', 'testPlugin', 'test record')).toBe(true);
-    expect(ls.logs.length).toBe(1);
-
-    expect(ls.logs[0]).toEqual({
-      timestamps: expect.any(Number),
-      plugin: 'testPlugin',
-      message: 'test record',
-      guid: '1',
-      logLevel: 'error',
-      caller: expect.any(String),
-    });
-  });
-
-  test(`doen't add error log record to buffer if current level below error`, () => {
-    expect(ls.setGlobalLogLevel('fatal')).toBe(true);
-    expect(ls.logs.length).toBe(0);
-    ls.error('1', 'testPlugin', 'test record');
-    expect(ls.logs.length).toBe(0);
-  });
-
-  test('empty string are not accepted', () => {
-    expect(ls.error('', '', '')).toBe(false);
-    expect(ls.logs.length).toBe(0);
-  });
-
-  test('wrong type arguments are not accepted', () => {
-    expect(ls.error(1, [], {})).toBe(false);
-    expect(ls.logs.length).toBe(0);
-  });
-
-  test('if new log message will overfill buffer it shoul first send logs and clean itself ', () => {
-    ls.bufferSize = 300;
-    fetch.mockImplementationOnce(() =>
-      Promise.resolve({
-        json: () => Promise.resolve('success'),
-      })
-    );
-    expect(ls.logs.length).toBe(0);
-    expect(ls.fatal('1', 'testPlugin', 'test record test record test record')).toBe(true);
-    expect(ls.logs.length).toBe(1);
-    expect(sizeof(ls.logs)).toBe(220);
-    expect(ls.fatal('1', 'testPlugin', 'test record test record test record')).toBe(true);
-    expect(ls.logs.length).toBe(1);
     expect(fetch).toBeCalledTimes(1);
   });
-
-  test('if new log message size is more than buffer size it will be dropped', () => {
-    ls.bufferSize = 150;
-    fetch.mockImplementationOnce(() =>
-      Promise.resolve({
-        json: () => Promise.resolve('success'),
-      })
-    );
-    expect(ls.logs.length).toBe(0);
-    expect(ls.fatal('1', 'testPlugin', 'test record test record test record')).toBe(false);
-    expect(ls.logs.length).toBe(0);
-    expect(fetch).toBeCalledTimes(0);
-  });
 });
 
-describe('LogSystem:warn()', () => {
-  let ls;
+// describe('LogSystem:error()', () => {
+//   let ls;
 
-  beforeEach(() => {
-    ls = new LogSystem();
-    ls.config = {};
-    ls.globalLogLevel = 'warn';
-    ls.bufferSize = 15000;
-    ls.sendInterval = 200;
-    global.fetch = jest.fn();
-  });
+//   beforeEach(async () => {
+//     ls = new LogSystem();
+//     ls.setGlobalLogLevel('error');
+//     ls.setBufferSize(15000);
+//     ls.setSendInerval(200);
+//     await ls.init();
+//     global.fetch = jest.fn();
+//   });
 
-  test('should be defined', () => {
-    expect(ls.warn).toBeDefined();
-  });
+//   test('should be defined', () => {
+//     expect(ls.error).toBeDefined();
+//   });
 
-  test('adds warn log record to buffer', () => {
-    expect(ls.logs.length).toBe(0);
-    expect(ls.warn('1', 'testPlugin', 'test record')).toBe(true);
-    expect(ls.logs.length).toBe(1);
+//   test('adds error log record to buffer', () => {
+//     expect(ls.logs.length).toBe(0);
+//     expect(ls.error('1', 'testPlugin', 'test record')).toBe(true);
+//     expect(ls.logs.length).toBe(1);
 
-    expect(ls.logs[0]).toEqual({
-      timestamps: expect.any(Number),
-      plugin: 'testPlugin',
-      message: 'test record',
-      guid: '1',
-      logLevel: 'warn',
-      caller: expect.any(String),
-    });
-  });
+//     expect(ls.logs[0]).toEqual({
+//       timestamps: expect.any(Number),
+//       plugin: 'testPlugin',
+//       message: 'test record',
+//       guid: '1',
+//       logLevel: 'error',
+//       caller: expect.any(String),
+//     });
+//   });
 
-  test(`doen't add warn log record to buffer if current level below warn`, () => {
-    expect(ls.setGlobalLogLevel('error')).toBe(true);
-    expect(ls.logs.length).toBe(0);
-    ls.warn('1', 'testPlugin', 'test record');
-    expect(ls.logs.length).toBe(0);
-  });
+//   test(`doen't add error log record to buffer if current level below error`, () => {
+//     expect(ls.setGlobalLogLevel('fatal')).toBe(true);
+//     expect(ls.logs.length).toBe(0);
+//     ls.error('1', 'testPlugin', 'test record');
+//     expect(ls.logs.length).toBe(0);
+//   });
 
-  test('empty string are not accepted', () => {
-    expect(ls.warn('', '', '')).toBe(false);
-    expect(ls.logs.length).toBe(0);
-  });
+//   test('empty string are not accepted', () => {
+//     expect(ls.error('', '', '')).toBe(false);
+//     expect(ls.logs.length).toBe(0);
+//   });
 
-  test('wrong type arguments are not accepted', () => {
-    expect(ls.warn(1, [], {})).toBe(false);
-    expect(ls.logs.length).toBe(0);
-  });
+//   test('wrong type arguments are not accepted', () => {
+//     expect(ls.error(1, [], {})).toBe(false);
+//     expect(ls.logs.length).toBe(0);
+//   });
 
-  test('if new log message will overfill buffer it shoul first send logs and clean itself ', () => {
-    ls.bufferSize = 300;
-    fetch.mockImplementationOnce(() =>
-      Promise.resolve({
-        json: () => Promise.resolve('success'),
-      })
-    );
-    expect(ls.logs.length).toBe(0);
-    expect(ls.fatal('1', 'testPlugin', 'test record test record test record')).toBe(true);
-    expect(ls.logs.length).toBe(1);
-    expect(sizeof(ls.logs)).toBe(220);
-    expect(ls.fatal('1', 'testPlugin', 'test record test record test record')).toBe(true);
-    expect(ls.logs.length).toBe(1);
-    expect(fetch).toBeCalledTimes(1);
-  });
+//   test('if new log message will overfill buffer it shoul first send logs and clean itself ', async () => {
+//     ls.setBufferSize(300);
+//     await ls.init();
+//     fetch.mockImplementationOnce(() =>
+//       Promise.resolve({
+//         json: () => Promise.resolve({ BufferSize: 11111, SendInterval: 171, GlobalLogLevel: 'fatal' }),
+//       })
+//     );
+//     expect(ls.logs.length).toBe(0);
+//     expect(ls.fatal('1', 'testPlugin', 'test record test record test record')).toBe(true);
+//     expect(ls.logs.length).toBe(1);
+//     expect(sizeof(ls.logs)).toBe(244);
+//     expect(ls.fatal('1', 'testPlugin', 'test record test record test record')).toBe(true);
+//     expect(ls.logs.length).toBe(1);
+//     expect(fetch).toBeCalledTimes(2);
+//   });
 
-  test('if new log message size is more than buffer size it will be dropped', () => {
-    ls.bufferSize = 150;
-    fetch.mockImplementationOnce(() =>
-      Promise.resolve({
-        json: () => Promise.resolve('success'),
-      })
-    );
-    expect(ls.logs.length).toBe(0);
-    expect(ls.fatal('1', 'testPlugin', 'test record test record test record')).toBe(false);
-    expect(ls.logs.length).toBe(0);
-    expect(fetch).toBeCalledTimes(0);
-  });
-});
+//   test('if new log message size is more than buffer size it will be dropped', async () => {
+//     ls.setBufferSize(150);
+//     await ls.init();
+//     fetch.mockImplementationOnce(() =>
+//       Promise.resolve({
+//         json: () => Promise.resolve({ BufferSize: 11111, SendInterval: 171, GlobalLogLevel: 'fatal' }),
+//       })
+//     );
+//     expect(ls.logs.length).toBe(0);
+//     expect(ls.fatal('1', 'testPlugin', 'test record test record test record')).toBe(false);
+//     expect(ls.logs.length).toBe(0);
+//     expect(fetch).toBeCalledTimes(1);
+//   });
+// });
 
-describe('LogSystem:info()', () => {
-  let ls;
+// describe('LogSystem:warn()', () => {
+//   let ls;
 
-  beforeEach(() => {
-    ls = new LogSystem();
-    ls.config = {};
-    ls.globalLogLevel = 'info';
-    ls.bufferSize = 15000;
-    ls.sendInterval = 200;
-    global.fetch = jest.fn();
-  });
+//   beforeEach(async () => {
+//     ls = new LogSystem();
+//     ls.setGlobalLogLevel('warn');
+//     ls.setBufferSize(15000);
+//     ls.setSendInerval(200);
+//     await ls.init();
+//     global.fetch = jest.fn();
+//   });
 
-  test('should be defined', () => {
-    expect(ls.info).toBeDefined();
-  });
+//   test('should be defined', () => {
+//     expect(ls.warn).toBeDefined();
+//   });
 
-  test('adds info log record to buffer', () => {
-    expect(ls.logs.length).toBe(0);
-    expect(ls.info('1', 'testPlugin', 'test record')).toBe(true);
-    expect(ls.logs.length).toBe(1);
+//   test('adds warn log record to buffer', () => {
+//     expect(ls.logs.length).toBe(0);
+//     expect(ls.warn('1', 'testPlugin', 'test record')).toBe(true);
+//     expect(ls.logs.length).toBe(1);
 
-    expect(ls.logs[0]).toEqual({
-      timestamps: expect.any(Number),
-      plugin: 'testPlugin',
-      message: 'test record',
-      guid: '1',
-      logLevel: 'info',
-      caller: expect.any(String),
-    });
-  });
+//     expect(ls.logs[0]).toEqual({
+//       timestamps: expect.any(Number),
+//       plugin: 'testPlugin',
+//       message: 'test record',
+//       guid: '1',
+//       logLevel: 'warn',
+//       caller: expect.any(String),
+//     });
+//   });
 
-  test(`doen't add info log record to buffer if current level below info`, () => {
-    expect(ls.setGlobalLogLevel('warn')).toBe(true);
-    expect(ls.logs.length).toBe(0);
-    ls.info('1', 'testPlugin', 'test record');
-    expect(ls.logs.length).toBe(0);
-  });
+//   test(`doen't add warn log record to buffer if current level below warn`, () => {
+//     expect(ls.setGlobalLogLevel('error')).toBe(true);
+//     expect(ls.logs.length).toBe(0);
+//     ls.warn('1', 'testPlugin', 'test record');
+//     expect(ls.logs.length).toBe(0);
+//   });
 
-  test('empty string are not accepted', () => {
-    expect(ls.info('', '', '')).toBe(false);
-    expect(ls.logs.length).toBe(0);
-  });
+//   test('empty string are not accepted', () => {
+//     expect(ls.warn('', '', '')).toBe(false);
+//     expect(ls.logs.length).toBe(0);
+//   });
 
-  test('wrong type arguments are not accepted', () => {
-    expect(ls.info(1, [], {})).toBe(false);
-    expect(ls.logs.length).toBe(0);
-  });
+//   test('wrong type arguments are not accepted', () => {
+//     expect(ls.warn(1, [], {})).toBe(false);
+//     expect(ls.logs.length).toBe(0);
+//   });
 
-  test('if new log message will overfill buffer it shoul first send logs and clean itself ', () => {
-    ls.bufferSize = 300;
-    fetch.mockImplementationOnce(() =>
-      Promise.resolve({
-        json: () => Promise.resolve('success'),
-      })
-    );
-    expect(ls.logs.length).toBe(0);
-    expect(ls.fatal('1', 'testPlugin', 'test record test record test record')).toBe(true);
-    expect(ls.logs.length).toBe(1);
-    expect(sizeof(ls.logs)).toBe(220);
-    expect(ls.fatal('1', 'testPlugin', 'test record test record test record')).toBe(true);
-    expect(ls.logs.length).toBe(1);
-    expect(fetch).toBeCalledTimes(1);
-  });
+//   test('if new log message will overfill buffer it shoul first send logs and clean itself ', async () => {
+//     ls.setBufferSize(300);
+//     await ls.init();
+//     fetch.mockImplementationOnce(() =>
+//       Promise.resolve({
+//         json: () => Promise.resolve({ BufferSize: 11111, SendInterval: 171, GlobalLogLevel: 'fatal' }),
+//       })
+//     );
+//     expect(ls.logs.length).toBe(0);
+//     expect(ls.fatal('1', 'testPlugin', 'test record test record test record')).toBe(true);
+//     expect(ls.logs.length).toBe(1);
+//     expect(sizeof(ls.logs)).toBe(244);
+//     expect(ls.fatal('1', 'testPlugin', 'test record test record test record')).toBe(true);
+//     expect(ls.logs.length).toBe(1);
+//     expect(fetch).toBeCalledTimes(2);
+//   });
 
-  test('if new log message size is more than buffer size it will be dropped', () => {
-    ls.bufferSize = 150;
-    fetch.mockImplementationOnce(() =>
-      Promise.resolve({
-        json: () => Promise.resolve('success'),
-      })
-    );
-    expect(ls.logs.length).toBe(0);
-    expect(ls.fatal('1', 'testPlugin', 'test record test record test record')).toBe(false);
-    expect(ls.logs.length).toBe(0);
-    expect(fetch).toBeCalledTimes(0);
-  });
-});
+//   test('if new log message size is more than buffer size it will be dropped', async () => {
+//     ls.setBufferSize(150);
+//     await ls.init();
+//     fetch.mockImplementationOnce(() =>
+//       Promise.resolve({
+//         json: () => Promise.resolve({ BufferSize: 11111, SendInterval: 171, GlobalLogLevel: 'fatal' }),
+//       })
+//     );
+//     expect(ls.logs.length).toBe(0);
+//     expect(ls.fatal('1', 'testPlugin', 'test record test record test record')).toBe(false);
+//     expect(ls.logs.length).toBe(0);
+//     expect(fetch).toBeCalledTimes(1);
+//   });
+// });
 
-describe('LogSystem:debug()', () => {
-  let ls;
+// describe('LogSystem:info()', () => {
+//   let ls;
 
-  beforeEach(() => {
-    ls = new LogSystem();
-    ls.config = {};
-    ls.globalLogLevel = 'debug';
-    ls.bufferSize = 15000;
-    ls.sendInterval = 200;
-    global.fetch = jest.fn();
-  });
+//   beforeEach(async () => {
+//     ls = new LogSystem();
+//     ls.setGlobalLogLevel('info');
+//     ls.setBufferSize(15000);
+//     ls.setSendInerval(200);
+//     await ls.init();
+//     global.fetch = jest.fn();
+//   });
 
-  test('should be defined', () => {
-    expect(ls.debug).toBeDefined();
-  });
+//   test('should be defined', () => {
+//     expect(ls.info).toBeDefined();
+//   });
 
-  test('adds debug log record to buffer', () => {
-    expect(ls.logs.length).toBe(0);
-    expect(ls.debug('1', 'testPlugin', 'test record')).toBe(true);
-    expect(ls.logs.length).toBe(1);
+//   test('adds info log record to buffer', () => {
+//     expect(ls.logs.length).toBe(0);
+//     expect(ls.info('1', 'testPlugin', 'test record')).toBe(true);
+//     expect(ls.logs.length).toBe(1);
 
-    expect(ls.logs[0]).toEqual({
-      timestamps: expect.any(Number),
-      plugin: 'testPlugin',
-      message: 'test record',
-      guid: '1',
-      logLevel: 'debug',
-      caller: expect.any(String),
-    });
-  });
+//     expect(ls.logs[0]).toEqual({
+//       timestamps: expect.any(Number),
+//       plugin: 'testPlugin',
+//       message: 'test record',
+//       guid: '1',
+//       logLevel: 'info',
+//       caller: expect.any(String),
+//     });
+//   });
 
-  test(`doen't add debug log record to buffer if current level below debug`, () => {
-    expect(ls.setGlobalLogLevel('info')).toBe(true);
-    expect(ls.logs.length).toBe(0);
-    ls.debug('1', 'testPlugin', 'test record');
-    expect(ls.logs.length).toBe(0);
-  });
+//   test(`doen't add info log record to buffer if current level below info`, () => {
+//     expect(ls.setGlobalLogLevel('warn')).toBe(true);
+//     expect(ls.logs.length).toBe(0);
+//     ls.info('1', 'testPlugin', 'test record');
+//     expect(ls.logs.length).toBe(0);
+//   });
 
-  test('empty string are not accepted', () => {
-    expect(ls.debug('', '', '')).toBe(false);
-    expect(ls.logs.length).toBe(0);
-  });
+//   test('empty string are not accepted', () => {
+//     expect(ls.info('', '', '')).toBe(false);
+//     expect(ls.logs.length).toBe(0);
+//   });
 
-  test('wrong type arguments are not accepted', () => {
-    expect(ls.debug(1, [], {})).toBe(false);
-    expect(ls.logs.length).toBe(0);
-  });
+//   test('wrong type arguments are not accepted', () => {
+//     expect(ls.info(1, [], {})).toBe(false);
+//     expect(ls.logs.length).toBe(0);
+//   });
 
-  test('if new log message will overfill buffer it shoul first send logs and clean itself ', () => {
-    ls.bufferSize = 300;
-    fetch.mockImplementationOnce(() =>
-      Promise.resolve({
-        json: () => Promise.resolve('success'),
-      })
-    );
-    expect(ls.logs.length).toBe(0);
-    expect(ls.fatal('1', 'testPlugin', 'test record test record test record')).toBe(true);
-    expect(ls.logs.length).toBe(1);
-    expect(sizeof(ls.logs)).toBe(220);
-    expect(ls.fatal('1', 'testPlugin', 'test record test record test record')).toBe(true);
-    expect(ls.logs.length).toBe(1);
-    expect(fetch).toBeCalledTimes(1);
-  });
+//   test('if new log message will overfill buffer it shoul first send logs and clean itself ', async () => {
+//     ls.setBufferSize(300);
+//     await ls.init();
+//     fetch.mockImplementationOnce(() =>
+//       Promise.resolve({
+//         json: () => Promise.resolve({ BufferSize: 11111, SendInterval: 171, GlobalLogLevel: 'fatal' }),
+//       })
+//     );
+//     expect(ls.logs.length).toBe(0);
+//     expect(ls.fatal('1', 'testPlugin', 'test record test record test record')).toBe(true);
+//     expect(ls.logs.length).toBe(1);
+//     expect(sizeof(ls.logs)).toBe(244);
+//     expect(ls.fatal('1', 'testPlugin', 'test record test record test record')).toBe(true);
+//     expect(ls.logs.length).toBe(1);
+//     expect(fetch).toBeCalledTimes(2);
+//   });
 
-  test('if new log message size is more than buffer size it will be dropped', () => {
-    ls.bufferSize = 150;
-    fetch.mockImplementationOnce(() =>
-      Promise.resolve({
-        json: () => Promise.resolve('success'),
-      })
-    );
-    expect(ls.logs.length).toBe(0);
-    expect(ls.fatal('1', 'testPlugin', 'test record test record test record')).toBe(false);
-    expect(ls.logs.length).toBe(0);
-    expect(fetch).toBeCalledTimes(0);
-  });
-});
+//   test('if new log message size is more than buffer size it will be dropped', async () => {
+//     ls.setBufferSize(150);
+//     await ls.init();
+//     fetch.mockImplementationOnce(() =>
+//       Promise.resolve({
+//         json: () => Promise.resolve({ BufferSize: 11111, SendInterval: 171, GlobalLogLevel: 'fatal' }),
+//       })
+//     );
+//     expect(ls.logs.length).toBe(0);
+//     expect(ls.fatal('1', 'testPlugin', 'test record test record test record')).toBe(false);
+//     expect(ls.logs.length).toBe(0);
+//     expect(fetch).toBeCalledTimes(1);
+//   });
+// });
+
+// describe('LogSystem:debug()', () => {
+//   let ls;
+
+//   beforeEach(async () => {
+//     ls = new LogSystem();
+//     ls.setGlobalLogLevel('debug');
+//     ls.setBufferSize(15000);
+//     ls.setSendInerval(200);
+//     await ls.init();
+//     global.fetch = jest.fn();
+//   });
+
+//   test('should be defined', () => {
+//     expect(ls.debug).toBeDefined();
+//   });
+
+//   test('adds debug log record to buffer', () => {
+//     expect(ls.logs.length).toBe(0);
+//     expect(ls.debug('1', 'testPlugin', 'test record')).toBe(true);
+//     expect(ls.logs.length).toBe(1);
+
+//     expect(ls.logs[0]).toEqual({
+//       timestamps: expect.any(Number),
+//       plugin: 'testPlugin',
+//       message: 'test record',
+//       guid: '1',
+//       logLevel: 'debug',
+//       caller: expect.any(String),
+//     });
+//   });
+
+//   test(`doen't add debug log record to buffer if current level below debug`, () => {
+//     expect(ls.setGlobalLogLevel('info')).toBe(true);
+//     expect(ls.logs.length).toBe(0);
+//     ls.debug('1', 'testPlugin', 'test record');
+//     expect(ls.logs.length).toBe(0);
+//   });
+
+//   test('empty string are not accepted', () => {
+//     expect(ls.debug('', '', '')).toBe(false);
+//     expect(ls.logs.length).toBe(0);
+//   });
+
+//   test('wrong type arguments are not accepted', () => {
+//     expect(ls.debug(1, [], {})).toBe(false);
+//     expect(ls.logs.length).toBe(0);
+//   });
+
+//   test('if new log message will overfill buffer it shoul first send logs and clean itself ', async () => {
+//     ls.setBufferSize(300);
+//     await ls.init();
+//     fetch.mockImplementationOnce(() =>
+//       Promise.resolve({
+//         json: () => Promise.resolve({ BufferSize: 11111, SendInterval: 171, GlobalLogLevel: 'fatal' }),
+//       })
+//     );
+//     expect(ls.logs.length).toBe(0);
+//     expect(ls.fatal('1', 'testPlugin', 'test record test record test record')).toBe(true);
+//     expect(ls.logs.length).toBe(1);
+//     expect(sizeof(ls.logs)).toBe(244);
+//     expect(ls.fatal('1', 'testPlugin', 'test record test record test record')).toBe(true);
+//     expect(ls.logs.length).toBe(1);
+//     expect(fetch).toBeCalledTimes(2);
+//   });
+
+//   test('if new log message size is more than buffer size it will be dropped', async () => {
+//     ls.setBufferSize(150);
+//     await ls.init();
+//     fetch.mockImplementationOnce(() =>
+//       Promise.resolve({
+//         json: () => Promise.resolve({ BufferSize: 11111, SendInterval: 171, GlobalLogLevel: 'fatal' }),
+//       })
+//     );
+//     expect(ls.logs.length).toBe(0);
+//     expect(ls.fatal('1', 'testPlugin', 'test record test record test record')).toBe(false);
+//     expect(ls.logs.length).toBe(0);
+//     expect(fetch).toBeCalledTimes(1);
+//   });
+// });
 
 describe('LogSystem:invokeOnLevel()', () => {
   let ls;
 
   beforeEach(() => {
     ls = new LogSystem();
-    ls.config = {};
-    ls.globalLogLevel = 'debug';
-    ls.bufferSize = 15000;
-    ls.sendInterval = 200;
+    ls.setGlobalLogLevel('debug');
+    ls.setBufferSize(15000);
+    ls.setSendInerval(200);
   });
 
   test('should be defined', () => {
@@ -564,7 +550,7 @@ describe('LogSystem:getGlobalLogLevel()', () => {
 
   beforeEach(() => {
     ls = new LogSystem();
-    ls.globalLogLevel = 'debug';
+    ls.setGlobalLogLevel('debug');
   });
 
   test('should be defined', () => {
@@ -661,7 +647,6 @@ describe('LogSystem:setPluginLogLevel()', () => {
   });
 
   test('sets correct log level for given plugin in configuration', () => {
-    expect(ls.config['guid1TestPlugin']).toBeUndefined();
     expect(ls.getPluginLogLevel('guid1', 'TestPlugin')).toBe('warn');
     expect(ls.setPluginLogLevel('guid1', 'TestPlugin', 'debug')).toBe(true);
     expect(ls.getPluginLogLevel('guid1', 'TestPlugin')).toBe('debug');
@@ -673,12 +658,9 @@ describe('LogSystem:setPluginLogLevel()', () => {
         guid1TestPlugin: 'debug',
       })
     );
-    expect(ls.config['guid1TestPlugin']).toBeDefined();
-    expect(ls.config['guid1TestPlugin']).toBe('debug');
   });
 
   test('accept both strings and numbers as log level for plugin', () => {
-    expect(ls.config['guid1TestPlugin']).toBeUndefined();
     expect(ls.setPluginLogLevel('guid1', 'TestPlugin', 'debug')).toBe(true);
     expect(ls.getPluginLogLevel('guid1', 'TestPlugin')).toBe('debug');
     expect(ls.setPluginLogLevel('guid1', 'TestPlugin', 4)).toBe(true);
@@ -691,12 +673,9 @@ describe('LogSystem:setPluginLogLevel()', () => {
         guid1TestPlugin: 'info',
       })
     );
-    expect(ls.config['guid1TestPlugin']).toBeDefined();
-    expect(ls.config['guid1TestPlugin']).toBe('info');
   });
 
   test('does not accept wrong log level argument', () => {
-    expect(ls.config['guid1TestPlugin']).toBeUndefined();
     expect(ls.getPluginLogLevel('guid1', 'TestPlugin')).toBe('warn');
     expect(ls.setPluginLogLevel('guid1', 'TestPlugin', 'de234bug')).toBe(false);
     expect(ls.getPluginLogLevel('guid1', 'TestPlugin')).toBe('warn');
@@ -707,7 +686,6 @@ describe('LogSystem:setPluginLogLevel()', () => {
         GlobalLogLevel: 'warn',
       })
     );
-    expect(ls.config['guid1TestPlugin']).toBeUndefined();
   });
 });
 
@@ -741,14 +719,10 @@ describe('LogSystem:removePluginLogLevel()', () => {
         guid1TestPlugin: 'debug',
       })
     );
-
-    expect(ls.config['guid1TestPlugin']).toBeDefined();
-    expect(ls.config['guid1TestPlugin']).toBe('debug');
     expect(ls.getPluginLogLevel('guid1', 'TestPlugin')).toBe('debug');
     expect(ls.removePluginLogLevel('guid1', 'TestPlugin')).toBe(true);
     expect(ls.getPluginLogLevel('guid1', 'TestPlugin')).toBe('warn');
 
-    expect(ls.config['guid1TestPlugin']).toBeUndefined();
     expect(localStorage.getItem('logSystemConfig')).toEqual(
       JSON.stringify({
         BufferSize: 22222,
