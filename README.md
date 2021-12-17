@@ -1,16 +1,15 @@
 # LogSystem
 
-Core system-plugin (part of DTCD-SDK) for recording logs in [DTCD](https://github.com/ISGNeuroTeam/DTCD) application.
+Core system-plugin (part of DTCD-SDK) for logging in [DTCD](https://github.com/ISGNeuroTeam/DTCD) application.
 
 ## Getting Started
 
-In order to use this plugin you need to download it, build and move build-file to _plugins_ folder on DTCD server.
+In order to use this plugin you need to download it, build and move it to plugins directory of complex_rest dtcd_mockserver_plugin.
 
 ### Prerequisites
 
-- [node.js](https://nodejs.org/en/) LTS version 14.x.x
-- `make` utility
-- [DTCD](https://github.com/ISGNeuroTeam/DTCD) application
+- [Node.js](https://nodejs.org/en/) LTS version 14.x.x
+- [DTCD](https://github.com/ISGNeuroTeam/DTCD) v0.3.0
 
 ### Building
 
@@ -38,15 +37,12 @@ make clear
 
 ## Deployment
 
-Create package, then move archive to _plugins_ folder on DTCD server and unarchive it with the following command:
-
-```
-tar -zxf DTCD-LogSystem-*.tar.gz
-```
+Use `make pack` to get a deployable tarball. Move it to plugins directory of complex_rest dtcd_mockserver_plugin.
 
 ## Built With
 
-- [rollup](https://rollupjs.org/guide/en/) - Builder
+- [DTCD-SDK](https://github.com/ISGNeuroTeam/DTCD-SDK) v0.1.2
+- [Rollup.js](https://rollupjs.org/guide/en/) v2.35.1
 
 ## Contributing
 
@@ -58,7 +54,9 @@ Also you can see the [CHANGELOG](CHANGELOG.md) file.
 
 ## Authors
 
-Roman Kuramshin (rkuramshin@isgneuro.com)
+- Konstantin Rozov (konstantin@isgneuro.com)
+- Kuramshin Roman (rkuramshin@isgneuro.com)
+- Belikov Sergei (sbelikov@isgneuro.com)
 
 ## License
 
