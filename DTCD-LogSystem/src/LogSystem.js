@@ -1,5 +1,6 @@
 import { SystemPlugin } from '../../DTCD-SDK/index';
 import sizeof from './utils/sizeof';
+import { version } from './../package.json';
 
 export class LogSystem extends SystemPlugin {
   #guid;
@@ -39,7 +40,7 @@ export class LogSystem extends SystemPlugin {
       type: 'core',
       title: 'Система логирования',
       name: 'LogSystem',
-      version: '0.3.1',
+      version,
       withDependencies: false,
       priority: 7,
     };
