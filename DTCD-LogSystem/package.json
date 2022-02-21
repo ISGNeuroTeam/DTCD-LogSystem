@@ -1,6 +1,6 @@
 {
   "name": "log-system",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "LogSystem for DTCD application",
   "main": "./src/LogSystem.js",
   "scripts": {
