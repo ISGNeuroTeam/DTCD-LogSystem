@@ -111,7 +111,7 @@ export class LogSystem extends SystemPlugin {
    */
   async init() {
     try {
-      const response = await fetch('dtcd_utils/v1/logs/object');
+      const response = await fetch('/dtcd_utils/v1/logs/object');
       this.#config = await response.json();
     } catch (err) {
       this.#config = {
@@ -226,7 +226,7 @@ export class LogSystem extends SystemPlugin {
   #uploadLogs() {
     try {
       const jsonLogs = JSON.stringify(this.#logs);
-      fetch('dtcd_utils/v1/logs/object', {
+      fetch('/dtcd_utils/v1/logs/object', {
         method: 'POST',
         body: jsonLogs,
         headers: {
