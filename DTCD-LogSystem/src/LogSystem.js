@@ -12,6 +12,7 @@ export class LogSystem extends SystemPlugin {
   #intervalSeconds;
   #intervalID;
   #consoleOutputMode;
+  #username = null;
   /**
    * @constructor
    * @param {String} guid guid of system instance
@@ -122,13 +123,18 @@ export class LogSystem extends SystemPlugin {
       };
     } finally {
       let localStorageConfig = this.#getConfig();
+
       if (!localStorageConfig) {
         localStorageConfig = {};
         this.#saveConfig(localStorageConfig);
       }
+
       for (let prop in localStorageConfig) {
         this.#config[prop] = localStorageConfig[prop];
       }
+
+      await this.setUsername();
+
       this.#globalLogLevel = this.#config?.GlobalLogLevel || 'fatal';
 
       this.#bufferSize = this.#config?.BufferSize || 11122;
@@ -138,6 +144,18 @@ export class LogSystem extends SystemPlugin {
 
       this.#intervalID = this.#createTimeInterval(this.#intervalSeconds);
     }
+  }
+
+  /**
+   * Sets the username for logs based on app authorization
+   * @returns {String | null} - current username or null
+   */
+  async setUsername() {
+    const response = await fetch('/dtcd_utils/v1/user?username');
+    const userData = await response.json();
+    this.#username = response.status === 200 ? userData.username : null;
+    console.log('USER SET TO =>', this.#username);
+    return this.#username;
   }
 
   /**
@@ -182,6 +200,10 @@ export class LogSystem extends SystemPlugin {
         message: message,
       };
 
+      if (this.#username) {
+        object.username = this.#username;
+      }
+
       if (sizeof(object) > this.#bufferSize) {
         return false;
       } else if (sizeof(object) + sizeof(this.#logs) > this.#bufferSize) {
@@ -200,6 +222,7 @@ export class LogSystem extends SystemPlugin {
       } else {
         this.#logs.push(object);
       }
+
       if (this.#consoleOutputMode) {
         // prettier-ignore
         console.log(`%ctimestamp:%c ${object.timestamps},
@@ -216,27 +239,25 @@ export class LogSystem extends SystemPlugin {
         'font-weight:bold',''
         );
       }
+
       return true;
     } else return false;
   }
 
   /**
    * Uploads log buffer to server
+   * @returns {Promise} Logs upload request promise
    */
   #uploadLogs() {
     try {
-      const jsonLogs = JSON.stringify(this.#logs);
-      fetch('/dtcd_utils/v1/logs/object', {
+      return fetch('/dtcd_utils/v1/logs/object', {
         method: 'POST',
-        body: jsonLogs,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-        .then(response => response.json())
-        .then(data => data);
+        body: JSON.stringify(this.#logs),
+        headers: { 'Content-Type': 'application/json' },
+      });
     } catch (error) {
-      console.error('Ошибка:', error);
+      console.error('Upload logs error:', error);
+      throw error;
     }
   }
 
