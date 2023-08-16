@@ -154,7 +154,6 @@ export class LogSystem extends SystemPlugin {
     const response = await fetch('/dtcd_utils/v1/user?username');
     const userData = await response.json();
     this.#username = response.status === 200 ? userData.username : null;
-    console.log('USER SET TO =>', this.#username);
     return this.#username;
   }
 
