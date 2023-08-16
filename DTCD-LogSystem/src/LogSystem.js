@@ -192,12 +192,13 @@ export class LogSystem extends SystemPlugin {
       const time = Date.now();
       const caller = this.#getFunctionCaller();
       const object = {
-        timestamps: time,
-        logLevel,
         guid,
-        plugin: pluginName,
         caller,
+        logLevel,
         message: message,
+        timestamps: time,
+        plugin: pluginName,
+        appID: Application.appID,
       };
 
       if (this.#username) {
