@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - username to log object
 - appID to log object
 
+### Changed
+
+- now `uploadLogs()` method is public
+
 ## [0.7.0]
 
 ### Fixed

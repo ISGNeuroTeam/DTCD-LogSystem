@@ -166,7 +166,7 @@ export class LogSystem extends SystemPlugin {
   #createTimeInterval(seconds) {
     return setInterval(() => {
       if (this.#logs.length > 0) {
-        this.#uploadLogs();
+        this.uploadLogs();
         this.#logs = [];
       }
     }, seconds * 1000);
@@ -209,7 +209,7 @@ export class LogSystem extends SystemPlugin {
         return false;
       } else if (sizeof(object) + sizeof(this.#logs) > this.#bufferSize) {
         try {
-          this.#uploadLogs();
+          this.uploadLogs();
         } catch (err) {
           console.log(err);
         } finally {
@@ -249,7 +249,7 @@ export class LogSystem extends SystemPlugin {
    * Uploads log buffer to server
    * @returns {Promise} Logs upload request promise
    */
-  #uploadLogs() {
+  uploadLogs() {
     try {
       return fetch('/dtcd_utils/v1/logs/object', {
         method: 'POST',
