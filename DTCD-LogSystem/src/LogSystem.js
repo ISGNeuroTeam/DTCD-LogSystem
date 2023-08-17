@@ -250,13 +250,15 @@ export class LogSystem extends SystemPlugin {
    */
   uploadLogs() {
     try {
-      if (this.#logs.length > 0) {
-        return fetch('/dtcd_utils/v1/logs/object', {
-          method: 'POST',
-          body: JSON.stringify(this.#logs),
-          headers: { 'Content-Type': 'application/json' },
-        });
+      if (this.#logs.length <= 0) {
+        return Promise.resolve('NOTHING_TO_UPLOAD');
       }
+
+      return fetch('/dtcd_utils/v1/logs/object', {
+        method: 'POST',
+        body: JSON.stringify(this.#logs),
+        headers: { 'Content-Type': 'application/json' },
+      });
     } catch (error) {
       console.error('Upload logs error:', error);
       throw error;
