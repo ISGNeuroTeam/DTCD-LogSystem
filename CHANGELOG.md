@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - username to log object
 - appID to log object
+- integration with Keycloak
 
 ### Changed
 

@@ -12,6 +12,7 @@ export class LogSystem extends SystemPlugin {
   #intervalSeconds;
   #intervalID;
   #consoleOutputMode;
+  #keycloak;
   #username = null;
   /**
    * @constructor
@@ -30,6 +31,7 @@ export class LogSystem extends SystemPlugin {
     this.#logs = [];
     this.#config = {};
     this.#consoleOutputMode = false;
+    this.#keycloak = this.getDependence('keycloak');
   }
 
   /**
@@ -151,9 +153,8 @@ export class LogSystem extends SystemPlugin {
    * @returns {String | null} - current username or null
    */
   async setUsername() {
-    const response = await fetch('/dtcd_utils/v1/user?username');
-    const userData = await response.json();
-    this.#username = response.status === 200 ? userData.username : null;
+    const userData = await this.#keycloak.loadUserProfile();
+    this.#username = userData.username;
     return this.#username;
   }
 
